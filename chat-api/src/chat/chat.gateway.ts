@@ -6,19 +6,24 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
+import { OpenaiService } from '../openai/openai.service';
 
 interface IMessage {
   username: string;
   content: string;
   timeSent: string;
+  translation: string;
+  informationVerification: string;
 }
 
 @WebSocketGateway({ cors: true })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  constructor(private openaiService: OpenaiService) {}
+
   @WebSocketServer()
   server: Socket;
 
-  clients: { client: Socket; username?: string }[] = [];
+  clients: { client: Socket; username?: string; language: string }[] = [];
   chatMessages: IMessage[] = [];
 
   @SubscribeMessage('message')
@@ -29,17 +34,50 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('chat-message')
-  handleChatMessage(client: any, payload: IMessage): void {
+   handleChatMessage(client: any, payload: IMessage){
     const c = this.clients.find((c) => c.client.id === client.id);
+  
     if (c.username) {
-      this.server.emit('chat-message', {
+      this.clients.forEach(async (client) => {
+     try{
+      // Ne pas traduire pour le client qui a envoye le message, ni pour ceux qui n'ont pas choisi de langue de traduction
+      let translatedMessage = client.username != c.username && client.language != "" ? await this.openaiService.translateMessage(payload.content, client.language) : "";
+      client.client.emit('chat-message', {
         ...payload,
         username: c.username,
+        translation: translatedMessage,
+    });
+    } catch (error){
+      client.client.emit('chat-message', {
+        ...payload,
+        username: c.username,
+        translation: "Translation error",
       });
+    }
+    
+    });
       this.chatMessages.push({
         ...payload,
         username: c.username,
       });
+    }
+  }
+
+  @SubscribeMessage('verify-information')
+  handleVerifyInformation(client: any, payload: any) {
+    if( payload.message.content != null && payload.message.content != undefined){
+      this.openaiService.verifyInformation(payload.message.content)
+      .then(verifiedInformation => {
+       this.server.emit('verify-information', {
+          ...payload.message,
+          informationVerification: verifiedInformation
+        }); 
+      }).catch(error => {
+        this.server.emit('verify-information', {
+          ...payload.message,
+          informationVerification: "Error during verification"
+        }); 
+      })
     }
   }
 
@@ -51,10 +89,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  @SubscribeMessage('language-set')
+  handleLanguagenameSet(client: any, payload: any): void {
+    const c = this.clients.find((c) => c.client.id === client.id);
+    if (c) {
+      c.language = payload.language;
+    }
+  }
+
   handleConnection(client: Socket) {
     console.log('client connected ', client.id);
+    const language = "";
     this.clients.push({
       client,
+      language,
     });
     client.emit('messages-old', this.chatMessages);
   }
@@ -63,4 +111,5 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log('client disconnected ', client.id);
     this.clients = this.clients.filter((c) => c.client.id !== client.id);
   }
+
 }
