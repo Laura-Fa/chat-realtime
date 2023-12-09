@@ -38,28 +38,53 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const c = this.clients.find((c) => c.client.id === client.id);
   
     if (c.username) {
-      this.clients.forEach(async (client) => {
-     try{
-      // Ne pas traduire pour le client qui a envoye le message, ni pour ceux qui n'ont pas choisi de langue de traduction
-      let translatedMessage = client.username != c.username && client.language != "" ? await this.openaiService.translateMessage(payload.content, client.language) : "";
-      client.client.emit('chat-message', {
-        ...payload,
-        username: c.username,
-        translation: translatedMessage,
-    });
-    } catch (error){
-      client.client.emit('chat-message', {
-        ...payload,
-        username: c.username,
-        translation: "Translation error",
-      });
-    }
-    
-    });
       this.chatMessages.push({
         ...payload,
         username: c.username,
       });
+
+      const messagesHistory = this.chatMessages.map(message => {
+        return {
+          role: 'user',
+          content: `User "${message.username}": ${message.content}`
+        };
+       });
+
+      this.clients.forEach(async (client) => {
+        if(client.username != undefined){
+          try{
+            // Ne pas traduire pour le client qui a envoye le message, ni pour ceux qui n'ont pas choisi de langue de traduction
+            let translatedMessage = client.username != c.username && client.language != "" ? await this.openaiService.translateMessage(payload.content, client.language) : "";
+            client.client.emit('chat-message', {
+              ...payload,
+              username: c.username,
+              translation: translatedMessage,
+          });
+          } catch (error){
+            client.client.emit('chat-message', {
+              ...payload,
+              username: c.username,
+              translation: "Translation error",
+            });
+          }
+
+          try{
+            let answers = [];
+            for (let i = 0; i < 2; i++) {
+              answers.push( await this.openaiService.suggestAnswers(messagesHistory, client.username));
+            }
+            client.client.emit('suggested-answers', {
+              ...answers
+            });
+          } catch (error){
+            client.client.emit('suggested-answers', {
+            ...["Error when suggesting answers"]
+            });
+          }
+      }
+
+      });
+
     }
   }
 

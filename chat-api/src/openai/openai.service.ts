@@ -33,4 +33,20 @@ export class OpenaiService {
           return response.choices[0].message.content;
     }
 
+    async suggestAnswers(messagesHistory: any, username: string): Promise<string> {  
+      const response = await this.openai.chat.completions.create({
+        model: process.env.OPENAI_API_MODEL,
+        max_tokens: 50,
+        temperature: 1,
+        messages: [
+          {role: 'system', content: `You are a helpful assistant. A conversion between several users is provided to you. Propose to user "${username}" his next answer. Keep it short.`},
+          ...messagesHistory
+        ],
+      });
+
+      return response.choices[0].message.content
+  }
+
 }
+
+

@@ -1,13 +1,15 @@
 "use client";
 import { useState } from "react";
 import { Socket } from "socket.io-client";
+import SuggestedAnswers from "@/components/chat/SuggestedAnswers";
 
 interface Props {
   socket: Socket;
   username: string;
+  answerOptions :[]
 }
 
-const SendMessage = ({ socket, username }: Props) => {
+const SendMessage = ({ socket, username, answerOptions }: Props) => {
   const [text, setText] = useState("");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -25,6 +27,7 @@ const SendMessage = ({ socket, username }: Props) => {
     setText("");
   };
   return (
+    <div>
     <form onSubmit={handleSubmit}   id="messageForm">
       <input
         className="input input-bordered input-primary w-full max-w-xs"
@@ -35,6 +38,8 @@ const SendMessage = ({ socket, username }: Props) => {
       />
       <button  className="btn" type="submit">Submit</button>
     </form>
+        <SuggestedAnswers setText={setText} answerOptions={answerOptions}/>
+    </div>
   );
 };
 

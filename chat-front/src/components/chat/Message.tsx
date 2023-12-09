@@ -36,7 +36,6 @@ const Message = ({socket, message, isMe }: Props) => {
         <p style={{ fontStyle: 'italic', fontSize: 'smaller' }}>{message.translation}</p> 
         <button className="btn btn-neutral btn-xs" onClick={() => handleSubmit(message)}>Verify information</button>
         <p  className={`bg-neutral rounded mt-2 ${message.informationVerification ? 'p-2' : ''}`} style={{  fontSize: 'smaller'}}>{message.informationVerification}</p> 
-      
       </div>
     </div>
  

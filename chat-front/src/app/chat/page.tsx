@@ -11,6 +11,7 @@ const socket = io("http://localhost:3000");
 const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [username, setUsername] = useState("");
+  const [answerOptions, setAnswerOptions] = useState([]) as any;
 
   useEffect(() => {
     socket.on("connect", () => {
@@ -24,6 +25,10 @@ const Chat = () => {
     socket.on("chat-message", (data) => {
       console.log("chat-message", data);
       setMessages((msg) => [...msg, data] as any);
+    });
+
+    socket.on("suggested-answers", (data) => {
+      setAnswerOptions( data);
     });
 
     socket.on("verify-information", (data) => {
@@ -50,10 +55,10 @@ const Chat = () => {
    
       <Username socket={socket} setUsername={setUsername} />
       <Language socket={socket} />
-      <Messages socket={socket} messages={messages} username={username} />
-      <SendMessage socket={socket} username={username} />
+      <Messages socket={socket} messages={messages} username={username}/>
+      <SendMessage socket={socket} username={username} answerOptions={answerOptions}/>
     </div>
-  );
+  ); 
 };
 
 export default Chat;
